@@ -14,9 +14,17 @@
 			<li>就选我吧</li>
 		</ul>
 	</div>
+	<div id="score_bar">
+		分数：<span id= 'score'></span>
+	</div>
+	<div id="great">
+		great <span style='color: orange;'>!!!</span>
+	</div>
 </body>
 
 	<script>
+		var score = document.getElementById('score');
+		var great = document.getElementById('great');
 		
 		function Engine(){
 			this.wrap = $('wrap');
@@ -96,7 +104,7 @@
 					var enemy = new Enemy(randomInt,that.wrap);
 
 					that.enemyArr.push(enemy);
-				},500);
+				},1000);
 
 				this.timerCache['createEnemyTimer'] = createEnemyTimer;
 				
@@ -122,7 +130,7 @@
 
 				document.onmousemove = function(e){
 					e = e || window.event;
-					that.borderCheck(e.clientX - range.offsetLeft - obj.offsetWidth / 2,e.clientY,obj,range);
+					that.borderCheck(e.clientX - range.offsetLeft - obj.offsetWidth / 2,e.clientY - that.ele.offsetHeight / 2,obj,range);
 
 					obj.style.left = that.curPos.left + 'px';
 					obj.style.top = that.curPos.top + 'px';
@@ -184,6 +192,7 @@
 				this.ele.className = 'me_die1';
 				var that = this;
 
+				// 飞机死亡 重新开始
 				var index = 0;
 				var dieTimer = setInterval(function(){
 					that.ele.className = 'me_die'+ ++index;
@@ -209,6 +218,7 @@
 													</ul>`;
 
 							engine = new Engine();
+							score.innerHTML = ''
 						},1000)
 					}
 				},30)
@@ -234,8 +244,6 @@
 				var div = document.createElement('div');
 					div.className = 'bullet';
 					this.wrap.appendChild(div);
-
-
 
 				div.style.left = this.plane.offsetLeft + this.plane.offsetWidth / 2  + 'px';
 				div.style.marginLeft = - div.offsetWidth / 2.5 + 'px';
@@ -271,7 +279,7 @@
 				var that = this;
 				setTimeout(function(){
 					that.ele.remove();
-				},200)
+				},50)
 			}
 		}
 
@@ -335,7 +343,9 @@
 					   && bullet.ele.offsetTop + bullet.ele.offsetHeight >= this.ele.offsetTop){
 					   	this.hp--;
 						if(this.hp == 0){
-							this.ele.remove();
+							this.die();
+							score.innerHTML = Number(score.innerHTML) + this.type;
+							showGreat(bullet.ele.offsetLeft,bullet.ele.offsetTop);
 						}
 						bullet.die();
 						break;
@@ -385,7 +395,7 @@
 							}
 							break;
 						case 3:
-							if(index == 5){
+							if(index == 6){
 								clearInterval(dieTimer);
 
 								setTimeout(function(){
@@ -393,12 +403,31 @@
 									
 								},200)
 							}
-							break;
 					}
 				},30)
 
 			}
 
+		}
+
+
+		function showGreat(left,top){
+			great.style.opacity = 1;
+			great.style.left = left + engine.wrap.offsetLeft + 'px';
+			great.style.top = top + 'px';
+
+			var speed = 2;
+			var timer = setInterval(function(){
+				great.style.top = great.offsetTop - speed + 'px';
+				if(great.offsetTop < top - 20){
+					clearInterval(timer);
+					setTimeout(function(){
+						great.style.opacity = 0;
+					},200)
+				}
+			},30)
+
+			
 		}
 
 
