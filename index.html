@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>飞机大战</title>
+</head>
+<link rel="stylesheet" href="css/common.css">
+<body>
+	<div id="wrap">
+		<ul id="option">
+			<li>超级困难</li>
+			<li>非常困难</li>
+			<li>比较困难</li>
+			<li>就选我吧</li>
+		</ul>
+	</div>
+</body>
+
+	<script>
+		
+		function Engine(){
+			this.wrap = $('wrap');
+			this.timerCache = {};
+			this.hardness = null;
+			this.enemyArr = [];
+
+			this.init();
+		}
+
+		Engine.prototype = {
+			init(){
+				var options = $('option').children;
+
+				var that = this;
+				for(var i = 0 ; i < options.length; i++){
+					(function(i){
+						options[i].onclick = function(){
+							this.parentNode.remove();
+							that.hardness = i;
+							that.render('logo');
+							that.render('loading');
+							that.loadingMove();
+							that.bgMove();
+
+							setTimeout(function(){
+								clearInterval(that.timerCache['loadingTimer']);
+								delete that.timerCache['loadingTimer'];
+								that.logo.remove();
+								that.loading.remove();
+								that.renderPlane();
+								that.renderEnemy();
+							},1000)
+						}
+					})(i)
+				}
+			},
+			render(type){
+				var nDiv = document.createElement('div');
+				nDiv.className = type;
+				document.body.appendChild(nDiv);
+				this[type] = nDiv;
+			},
+			loadingMove(){
+				var index = 0;
+				var that = this;
+				var loadingTimer = setInterval(function(){
+					index++;
+					that.loading.style.background = 'url(images/loading'+ (index % 3 + 1) +'.png)';
+				},500);
+
+				this.timerCache['loadingTimer'] = loadingTimer;
+			},
+			bgMove(){
+				this.bgIndex = 0;
+				var that = this;
+				var bgTimer = setInterval(function(){
+					that.bgIndex += 10;
+					this.wrap.style.backgroundPositionY = that.bgIndex + 'px';
+				},30);
+
+				this.timerCache['bgTimer'] = bgTimer;
+			},
+			renderPlane(){
+				var nDiv = document.createElement('div');
+				nDiv.className = 'plane';
+				this.wrap.appendChild(nDiv);
+				this.plane = nDiv;
+				Plane.init(this.wrap,this.plane);
+			},
+			renderEnemy(){
+				// 造敌机
+				var that = this;
+				var createEnemyTimer = setInterval(function(){
+					var randomInt = Math.round(Math.random() * 2 + 1);
+					
+					var enemy = new Enemy(randomInt,that.wrap);
+
+					that.enemyArr.push(enemy);
+				},500);
+
+				this.timerCache['createEnemyTimer'] = createEnemyTimer;
+				
+			}
+		}
+
+		var engine = new Engine();
+
+		var Plane = {
+			ele : {},
+			range : {},
+			bullets : [],
+			timer : {},
+			curPos : {
+				left : null,
+				top : null
+			},
+			init(range,obj){
+				this.range = range;
+				this.ele = obj;
+				// 绑定事件
+				var that = this;
+
+				document.onmousemove = function(e){
+					e = e || window.event;
+					that.borderCheck(e.clientX - range.offsetLeft - obj.offsetWidth / 2,e.clientY,obj,range);
+
+					obj.style.left = that.curPos.left + 'px';
+					obj.style.top = that.curPos.top + 'px';
+				}
+
+				// 匹配难度
+
+				var delay = 0;
+
+				switch (engine.hardness) {
+					case 0:
+						delay = 500;
+						break;
+					case 1:
+						delay = 200;
+						break;
+					case 2:
+						delay = 100;
+						break;
+					case 3:
+						delay = 30;
+				}
+
+				this.timer = setInterval(function(){
+					
+					that.bullets.forEach(function(n,i){
+						if(n.ele.offsetTop<= 0){
+							that.bullets.splice(i,1);
+						}
+					})
+
+					new Bullet(range,obj);
+					new Bullet(range,obj,"left");
+					new Bullet(range,obj,"right");
+
+				},delay);
+				
+			},
+			borderCheck(left,top,obj,range){
+				this.curPos.left = left;
+				this.curPos.top = top;
+
+				if(left <= 0){
+					this.curPos.left = 0;
+				}
+				
+				if(left >= range.offsetWidth - obj.offsetWidth){
+					this.curPos.left = range.offsetWidth - obj.offsetWidth
+				}
+
+				this.curPos.top = top <=0 ? 0 : top;
+				
+				if(top >= document.body.clientHeight - obj.offsetHeight - 50){
+					this.curPos.top = document.body.clientHeight - obj.offsetHeight- 50;
+				} 
+			},
+			die(){
+				clearInterval(this.timer);
+				this.ele.className = 'me_die1';
+				var that = this;
+
+				var index = 0;
+				var dieTimer = setInterval(function(){
+					that.ele.className = 'me_die'+ ++index;
+					if(index == 3){
+						clearInterval(dieTimer);
+
+						setTimeout(function(){
+							that.ele.remove();
+							// 清定时器
+							for(var i in engine.timerCache){
+								clearInterval(engine.timerCache[i]);
+							}
+
+							engine.enemyArr.forEach(function(n){
+								n.ele.remove();
+							})
+							
+							that.range.innerHTML = `<ul id="option">
+														<li>超级困难</li>
+														<li>非常困难</li>
+														<li>比较困难</li>
+														<li>就选我吧</li>
+													</ul>`;
+
+							engine = new Engine();
+						},1000)
+					}
+				},30)
+
+				
+			}
+			
+		}
+
+		function Bullet(range,obj,dir){
+			this.wrap = range;
+			this.plane = obj;
+			this.ele = null;
+			this.timer = null;
+			this.dir = dir;
+
+			this.init();
+		}
+
+		Bullet.prototype = {
+			constructor:Bullet,
+			init(){
+				var div = document.createElement('div');
+					div.className = 'bullet';
+					this.wrap.appendChild(div);
+
+
+
+				div.style.left = this.plane.offsetLeft + this.plane.offsetWidth / 2  + 'px';
+				div.style.marginLeft = - div.offsetWidth / 2.5 + 'px';
+				div.style.top = this.plane.offsetTop - div.offsetHeight + 'px';
+				div.posY = -20;
+
+				if(this.dir == 'left'){
+					div.style.left = this.plane.offsetLeft + this.plane.offsetWidth / 5.5  + 'px';
+					div.style.top = this.plane.offsetTop + this.plane.offsetHeight / 4 + 'px';
+				}else if (this.dir == 'right') {
+					div.style.left = this.plane.offsetLeft + this.plane.offsetWidth / 1.2  + 'px';
+					div.style.top = this.plane.offsetTop + this.plane.offsetHeight / 4 + 'px';
+				}
+
+
+				this.ele = div;
+
+				Plane.bullets.push(this);
+
+				var that = this;
+
+				this.timer = setInterval(function(){
+					div.style.top = div.offsetTop + div.posY + 'px';
+					if(div.offsetTop <= 0 ){
+						that.die();
+					}
+				},30);
+
+			},
+			die(){
+				clearInterval(this.timer);
+				this.ele.className = 'die1';
+				var that = this;
+				setTimeout(function(){
+					that.ele.remove();
+				},200)
+			}
+		}
+
+		class Enemy {
+			constructor(type,wrap){
+				this.type = type;
+				this.wrap = wrap;
+				this.ele = null;
+				this.left = null;
+				this.top = null;
+				this.timer = null;
+
+				this.init();
+			}
+
+			init(){
+				var enemyDom = document.createElement('div');
+				document.body.appendChild(enemyDom);
+				this.ele = enemyDom;
+
+				switch(this.type){
+					case 1 : 
+						this.ele.className = 'sE';
+						this.speed = 5;
+						this.hp = 10;
+						break;
+					case 2 : 
+						this.ele.className = 'mE';
+						this.speed = 2;
+						this.hp = 20;
+						break;
+					case 3 : 
+						this.ele.className = 'lE';
+						this.speed = 1;
+						this.hp = 50;
+
+				}
+
+				var randomLeft = Math.max(Math.random()*this.wrap.offsetWidth + this.wrap.offsetLeft - this.ele.offsetWidth,this.wrap.offsetLeft);
+				this.ele.style.left = randomLeft + 'px';
+				this.ele.style.top = 0;
+
+				this.left = this.ele.offsetLeft - this.wrap.offsetLeft;
+
+				this.move();
+			}
+
+			move(){
+				var that = this;
+				this.timer = setInterval(function(){
+					that.ele.style.top = that.speed + that.ele.offsetTop + 'px';
+					that.checkHit();
+				},30)
+			}
+
+			checkHit(){
+				for(var i = 0 , bullet = null ; bullet = Plane.bullets[i++] ; ){
+					if(bullet.ele.offsetLeft + bullet.ele.offsetWidth >= this.left
+					   && bullet.ele.offsetLeft <= this.left + this.ele.offsetWidth
+					   && bullet.ele.offsetTop <= this.ele.offsetTop + this.ele.offsetHeight
+					   && bullet.ele.offsetTop + bullet.ele.offsetHeight >= this.ele.offsetTop){
+					   	this.hp--;
+						if(this.hp == 0){
+							this.ele.remove();
+						}
+						bullet.die();
+						break;
+					}
+				}
+
+				if(this.ele.offsetLeft + this.ele.offsetWidth >= Plane.curPos.left + this.wrap.offsetLeft
+				   && this.ele.offsetLeft <= Plane.curPos.left + this.wrap.offsetLeft + Plane.ele.offsetWidth
+				   && this.ele.offsetTop <= Plane.ele.offsetTop + Plane.ele.offsetHeight
+				   && this.ele.offsetTop + this.ele.offsetHeight >= Plane.ele.offsetTop){
+				   	
+					this.die();
+					// 不开则为无敌
+					Plane.die();
+				}
+			}
+
+			die(){
+
+				clearInterval(this.timer);
+				this.ele.className = 'plane'+ this.type + '_die1';
+
+				var index = 0;
+				var that = this;
+				var dieTimer = setInterval(function(){
+					that.ele.className = 'plane'+ that.type + '_die' + ++index;
+
+					switch(that.type){
+						case 1:
+							if(index == 2){
+								clearInterval(dieTimer);
+
+								setTimeout(function(){
+									that.ele.remove();
+									
+								},200)
+							}
+							break;
+						case 2:
+							if(index == 3){
+								clearInterval(dieTimer);
+
+								setTimeout(function(){
+									that.ele.remove();
+									
+								},200)
+							}
+							break;
+						case 3:
+							if(index == 5){
+								clearInterval(dieTimer);
+
+								setTimeout(function(){
+									that.ele.remove();
+									
+								},200)
+							}
+							break;
+					}
+				},30)
+
+			}
+
+		}
+
+
+		function $(id){
+			return document.getElementById(id);
+		}
+
+	</script>
+
+</html>
